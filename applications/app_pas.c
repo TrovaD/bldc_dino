@@ -132,8 +132,8 @@ bool app_pas_get_reverse_pedaling(void) {
 	} else { return false; }
 }
 
-void app_pas_set_one_magnet(bool use_one_magnet) {
-	pas_one_magnet = use_one_magnet;
+void app_pas_set_one_sensor(bool use_one_sensor) {
+	pas_one_sensor = use_one_sensor;
 }
 void pas_event_handler(void) {
 #ifdef HW_PAS1_PORT
@@ -146,7 +146,7 @@ void pas_event_handler(void) {
 	static float period_filtered = 0;
 	static int32_t correct_direction_counter = 0;
 	static uint8_t count = 0; // check if it ist needed -------------------------------------------------------
-	if(pas_one_magnet){
+	if(pas_one_sensor){
 
 		uint8_t	pas_level = palReadPad(GPIOB, 6);
 
