@@ -58,6 +58,10 @@ static volatile bool primary_output = false;
 static volatile bool stop_now = true;
 static volatile bool is_running = false;
 static volatile float torque_ratio = 0.0;
+static volatile bool pas_one_sensor = true;
+static volatile int8_t reverse_pedaling = 0;
+static volatile uint32_t count_positive = 79;
+static volatile uint32_t count_negative = 79;
 
 /**
  * Configure and initialize PAS application
@@ -122,7 +126,15 @@ float app_pas_get_current_target_rel(void) {
 float app_pas_get_pedal_rpm(void) {
 	return pedal_rpm;
 }
+bool app_pas_get_reverse_pedaling(void) {
+	if (reverse_pedaling > 4) {
+		return true;
+	} else { return false; }
+}
 
+void app_pas_set_one_magnet(bool use_one_magnet) {
+	pas_one_magnet = use_one_magnet;
+}
 void pas_event_handler(void) {
 #ifdef HW_PAS1_PORT
 	const int8_t QEM[] = {0,-1,1,2,1,0,2,-1,-1,2,0,1,2,1,-1,0}; // Quadrature Encoder Matrix
@@ -133,7 +145,83 @@ void pas_event_handler(void) {
 	static float inactivity_time = 0;
 	static float period_filtered = 0;
 	static int32_t correct_direction_counter = 0;
+	static uint8_t count = 0; // check if it ist needed -------------------------------------------------------
+	if(pas_one_magnet){
 
+		uint8_t	pas_level = palReadPad(GPIOB, 6);
+
+		new_state = pas_level;
+
+		if (new_state != old_state) {
+		  	count++;}
+
+		old_state = new_state;
+
+
+		if (config.invert_pedal_direction) {
+			if (new_state) {
+			count_negative++;
+			} else {
+			count_positive++;}
+		} else {
+			if (new_state) {
+			count_positive++;
+			} else {
+			count_negative++;}
+
+		}
+
+		if ((count > 1) & ((((count_positive - count_negative) / count_positive) * 100) > 42)) {
+			reverse_pedaling = 0;
+			correct_direction_counter++;
+		} else {
+			correct_direction_counter = 0;}
+
+
+
+		if ((count > 1) & (correct_direction_counter == 0) & (reverse_pedaling < 20)) {
+				reverse_pedaling++;
+		}
+
+		if  ((count > 1) & (reverse_pedaling > 4)) {
+			pedal_rpm = 0.0;
+		}
+
+		const float timestamp = (float)chVTGetSystemTimeX() / (float)CH_CFG_ST_FREQUENCY;
+
+		if (count > 1) {
+			float period = (timestamp - old_timestamp) * (float)config.magnets;
+			old_timestamp = timestamp;
+			UTILS_LP_FAST(period_filtered, period, 1.0);
+			if(period_filtered < min_pedal_period) { //can't be that short, abort
+				return;
+			}
+			if (correct_direction_counter > 0) {
+				reverse_pedaling = 0;
+				if (pedal_rpm < 3) {
+					pedal_rpm = 4;
+				} else if (pedal_rpm == 5) {	// pull the time to adjust the counters
+					pedal_rpm = 5;
+				} else if (pedal_rpm == 5) {
+					pedal_rpm = 30.0 / period_filtered; 	//safe start
+				} else {
+					pedal_rpm = 60.0 / period_filtered;}
+			}
+			inactivity_time = 0.0;
+			count = 0;
+		}
+		else {
+			inactivity_time += 1.0 / (float)config.update_rate_hz;
+			//if no pedal activity, set RPM as zero
+			if(inactivity_time > (max_pulse_period / 1.7)) {
+				pedal_rpm = 0.0;
+				count_positive = 79;
+				count_negative = 79;
+				reverse_pedaling = 0;
+			}
+		}
+
+	} else {
 	uint8_t PAS1_level = palReadPad(HW_PAS1_PORT, HW_PAS1_PIN);
 	uint8_t PAS2_level = palReadPad(HW_PAS2_PORT, HW_PAS2_PIN);
 
@@ -175,6 +263,7 @@ void pas_event_handler(void) {
 			pedal_rpm = 0.0;
 		}
 	}
+}
 #endif
 }
 
