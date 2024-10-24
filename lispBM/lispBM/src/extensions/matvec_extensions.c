@@ -39,7 +39,7 @@ static lbm_value vector_float_allocate(lbm_uint size) {
                                     size * sizeof(float));
   if (!mem) return ENC_SYM_MERROR;
   mem->size = size;
-  lbm_value res;
+  lbm_value res = 0;
   lbm_custom_type_create((lbm_uint)mem,
                          common_destructor,
                          vector_float_desc,
@@ -48,7 +48,7 @@ static lbm_value vector_float_allocate(lbm_uint size) {
 }
 
 static bool is_vector_float(lbm_value v) {
-  return ((lbm_uint)lbm_get_custom_descriptor(v) == (lbm_uint)vector_float_desc);
+  return (lbm_is_custom(v) && ((lbm_uint)lbm_get_custom_descriptor(v) == (lbm_uint)vector_float_desc));
 }
 
 /* **************************************************
@@ -68,7 +68,7 @@ static lbm_value matrix_float_allocate(unsigned int rows, unsigned int cols) {
   if (!mem) return ENC_SYM_MERROR;
   mem->rows = rows;
   mem->cols = cols;
-  lbm_value res;
+  lbm_value res = 0;
   lbm_custom_type_create((lbm_uint)mem,
                          common_destructor,
                          matrix_float_desc,
@@ -77,7 +77,7 @@ static lbm_value matrix_float_allocate(unsigned int rows, unsigned int cols) {
 }
 
 static bool is_matrix_float(lbm_value m) {
-  return ((lbm_uint)lbm_get_custom_descriptor(m) == (lbm_uint)matrix_float_desc);
+  return (lbm_is_custom(m) && (lbm_uint)lbm_get_custom_descriptor(m) == (lbm_uint)matrix_float_desc);
 }
 
 /* **************************************************
@@ -331,23 +331,19 @@ static lbm_value ext_matrix_to_list(lbm_value *args, lbm_uint argn) {
  * Initialization
  */
 
-bool lbm_matvec_extensions_init(void) {
-  bool res = true;
-
+void lbm_matvec_extensions_init(void) {
   // Vectors
-  res = res && lbm_add_extension("vector", ext_vector);
-  res = res && lbm_add_extension("list-to-vector", ext_list_to_vector);
-  res = res && lbm_add_extension("vector-to-list", ext_vector_to_list);
-  res = res && lbm_add_extension("vproj", ext_vproj);
-  res = res && lbm_add_extension("axpy", ext_axpy);
-  res = res && lbm_add_extension("dot", ext_dot);
-  res = res && lbm_add_extension("mag", ext_mag);
-  res = res && lbm_add_extension("vmult", ext_vmult);
+  lbm_add_extension("vector", ext_vector);
+  lbm_add_extension("list-to-vector", ext_list_to_vector);
+  lbm_add_extension("vector-to-list", ext_vector_to_list);
+  lbm_add_extension("vproj", ext_vproj);
+  lbm_add_extension("axpy", ext_axpy);
+  lbm_add_extension("dot", ext_dot);
+  lbm_add_extension("mag", ext_mag);
+  lbm_add_extension("vmult", ext_vmult);
 
   // Matrices
-  res = res && lbm_add_extension("list-to-matrix", ext_list_to_matrix);
-  res = res && lbm_add_extension("matrix-to-list", ext_matrix_to_list);
-
-  return res;
+  lbm_add_extension("list-to-matrix", ext_list_to_matrix);
+  lbm_add_extension("matrix-to-list", ext_matrix_to_list);
 }
 

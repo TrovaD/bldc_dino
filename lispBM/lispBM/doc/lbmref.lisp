@@ -1,320 +1,4 @@
 
-(defun is-read-eval-txt (x)
-  (match x
-         ( (read-eval . _) true)
-         (_ false)))
-
-(defun pretty (c)
-  (pretty-ind 0 c))
-
-(defun ind-spaces (n)
-  (str-replicate n 32b))
-
-(defun pretty-ind (n c)
-  (match c
-         ( (loop (? e) . (? es))
-           (str-merge (ind-spaces n) "(loop " (pretty e) (pretty-aligned-ontop (+ n 6) es) ")" ))
-         ( (atomic (? e) . (? es))
-           (str-merge (ind-spaces n) "(atomic " (pretty e) (pretty-aligned-ontop (+ n 8) es) ")" ))
-         ( (recv  (? e) . (? es))
-           (str-merge (ind-spaces n) "(recv " (pretty e) (pretty-aligned-ontop (+ n 6) es) ")" ))
-         ( (recv-to  (? e) . (? es))
-           (str-merge (ind-spaces n) "(recv-to " (pretty e) (pretty-aligned-ontop (+ n 9) es) ")" ))
-         ( (match (? e) . (? es))
-           (str-merge (ind-spaces n) "(match " (pretty e) (pretty-aligned-ontop (+ n 7) es) ")" ))
-         ( (progn (? e ) . (? es))
-           (str-merge (ind-spaces n) "(progn " (pretty e) (pretty-aligned-ontop (+ n 7) es) ")" ))
-         ( (quote (? e)) (str-merge (ind-spaces n) "'" (pretty e)))
-         ( (let ((? b0) . (? brest)) (? body)) ;; pattern
-           (str-merge (ind-spaces n)
-                      "(let ("
-
-                      (pretty b0)
-                      (pretty-aligned-ontop (+ n 6) brest)
-                      ")\n"
-
-                      (pretty-ind (+ n 5) body)
-                      ")"
-                      ))
-         ( (cond (? x) . (? xs) )
-           (let ( (conds (pretty-aligned-ontop (+ n 6) xs))
-                  (cond0 (pretty x)))
-             (str-merge (ind-spaces n) "(cond " cond0 conds ")")
-             )
-           )
-         ( ((? x) . (? xs)) (str-merge (ind-spaces n) "(" (pretty x) (pretty-list xs) ")" ))
-         (_ (str-merge (ind-spaces n) (to-str c))))
-  )
-
-(defun pretty-list (c)
-  (match c
-         ( nil "" )
-         ( ((? x) . nil) (str-merge " " (pretty x) ))
-         ( ((? x) . (? y))
-           (if (eq (type-of y) type-list)
-               (str-merge " " (pretty x) (pretty-list y))
-             (str-merge " " (pretty x) "." (pretty y)))
-           )
-         ( (? x) (str-merge " . " (pretty x)))))
-
-(defun pretty-aligned-ontop (n cs)
-  (match cs
-         (nil "")
-         ( ( (? x ) . (? xs))
-           (str-merge "\n" (pretty-ind n x) (pretty-aligned-ontop n xs))))
-  )
-
-(defun render-code-res-pairs (rend cs)
-  (match cs
-         (nil t)
-         ( ((? x) . (? xs))
-           (let ((x-str (if (is-read-eval-txt x)
-                            (ix x 1)
-                          (pretty x)))
-                 (x-code (if (is-read-eval-txt x)
-                             (read (ix x 1))
-                           x))
-                 (res (eval nil x-code))
-                 (rstr (to-str res)))
-             {
-             (rend "<tr>\n")
-             (rend "<td>\n\n")
-             (rend "```clj\n")
-             (rend x-str)
-             (rend "\n```\n")
-             (rend "\n\n</td>\n")
-             (rend "<td>\n\n")
-             (rend "```clj\n")
-             (rend rstr)
-             (rend "\n```\n")
-             (rend "\n\n</td>\n")
-             (rend "</tr>\n")
-             (render-code-res-pairs rend xs)
-             }))))
-
-(defun render-code-table (rend c)
-    {
-    (rend "<table>\n")
-    (rend "<tr>\n")
-    (rend "<td> Example </td> <td> Result </td>\n")
-    (rend "</tr>\n")
-    (render-code-res-pairs rend c)
-    (rend "</table>\n\n")
-    })
-
-(defun intersperse (str strs)
-  (match strs
-         ( ((? s) . nil) s)
-         ( ((? s) . (? ss))
-           (str-merge s str (intersperse str ss)))))
-    
-
-(defun tableize (strs)
-  (str-merge "|" (intersperse "|" strs) "|\n" )
-  )
-
-(defun render-table (rend h d)
-  {
-  (rend "\n")
-  (rend (tableize h))
-  (rend (tableize (map (lambda (x) ":----:") h)))
-  (map (lambda (s) (rend (tableize s))) d)
-  (rend "\n")
-  }
-  )
-
-(defun render-program-res-pairs (rend cs)
-  (match cs
-         (nil t)
-         ( ((? x) . (? xs))
-           (let ((cstrs (map (lambda (c) (str-merge (pretty c) "\n"))  x))
-                 (res (eval-program nil x))
-                 (rstr (to-str res)))
-             {
-             (rend "<tr>\n")
-             (rend "<td>\n\n")
-             (rend "\n```clj\n")
-             (map rend cstrs)
-             (rend "\n```\n")
-             (rend "\n\n</td>\n")
-             (rend "<td>\n\n")
-             (rend "\n```clj\n")
-             (rend rstr)
-             (rend "\n```\n")
-             (rend "\n\n</td>\n")
-             (rend "</tr>\n")
-             (render-program-res-pairs rend xs)
-             }))))
-
-(defun render-program-table (rend c)
-  {
-    (rend "<table>\n")
-    (rend "<tr>\n")
-    (rend "<td> Example </td> <td> Result </td>\n")
-    (rend "</tr>\n")
-    (render-program-res-pairs rend c)
-    (rend "</table>\n\n")
-    })
-
-(defun str-merge-list (strs)
-  (match strs
-         ( nil "" )
-         ( ((? s) . (? ss)) (str-merge s (str-merge-list ss)))))
-
-(defun render-it (rend ss)
-  (match ss
-         ( nil (rend "\n") )
-         ( (section (? i) (? x) (? xs))
-           {
-           (match i
-                  (1 (rend (str-merge "# " x "\n\n")))
-                  (2 (rend (str-merge "## " x "\n\n")))
-                  (3 (rend (str-merge "### " x "\n\n")))
-                  (4 (rend (str-merge "#### " x "\n\n"))))
-           (render rend xs)
-           }
-           )
-         ( (para (? x)) { (map (lambda (s) (rend (str-merge s " "))) x) (rend "\n\n") } )
-         ( (verb (? x)) { (map (lambda (s) (rend s)) x) (rend "\n") } )
-         ( hline (rend "\n---\n\n"))
-         ( newline (rend "\n"))
-         ( (bold (? s))
-           (rend (str-merge "**" s "**")))
-         ( (program (? c)) (render-program-table rend c))
-         ( (code (? c)) (render-code-table rend c))
-         ( (image (? alt) (? url))
-           (rend (str-merge "![" alt "](" url " \"" alt "\")\n\n")))
-         ( (image-pair (? cap0) (? txt0) (? fig0) (? cap1) (? txt1) (? fig1))
-           (rend (str-merge cap0 " | " cap1 "\n"
-                            "|:---:|:---:|\n"
-                            "![" txt0 "](" fig0 ") | ![" txt1 "](" fig1 ")\n\n")))
-         ( (s-exp-graph (? img-name) (? code))
-           {
-           (render-dot img-name code)
-           (rend (str-merge "![Graph representaion of s-expression](./images/" img-name ".png)\n\n"))
-           })
-         ( (semantic-step (? c1) (? c2) (? p)
-                          ))
-         ( (table (? h) (? d))
-           (render-table rend h d))
-         ( _ (render rend ss))
-         ))
-
-
-(defun render (rend ss)
-  (match ss
-         (nil t)
-         ( ((? x) . (? xs))
-           {
-           (render-it rend x)
-           (render rend xs)
-           })
-         ))
-
-(define end nil)
-
-(defun s+ (s ss)
-  (cons s ss))
-
-(defun section (i str strs)
-  (list 'section i str strs))
-
-(defun ref-entry (str strs)
-  (list
-   'newline
-   (section 3 str strs)
-   'newline
-   'hline
-   ))
-
-(defun hline ()
-  'hline)
-
-(defun para (str)
-  (list 'para str))
-
-(defun verb (str)
-  (list 'verb str))
-
-(defun code (c)
-  (list 'code c))
-
-(defun code-examples (c)
-  (list 'code-examples c))
-
-(defun program (c)
-  (list 'program c))
-
-(defun newline ()
-  'newline)
-
-(defun bold (str)
-  (list 'bold str))
-
-(defun bullet (ss)
-  (verb (map (lambda (x) (str-merge "   - " x "\n")) ss)))
-
-(defun image (alt url)
-  (list 'image alt url))
-
-(defun image-pair (cap0 txt0 fig0 cap1 txt1 fig1)
-  (list 'image-pair cap0 txt0 fig0 cap1 txt1 fig1))
-
-(defun s-exp-graph (img-name code)
-  (list 's-exp-graph img-name code))
-
-(defun semantic-step (c1 c2 prop)
-  (list 'semantic-step c1 c2 prop))
-
-(defun table (header data)
-  (list 'table header data))
-
-;; Dot generation
-
-(defun dot-it ( i x)
-  (match x
-         ( ((? x) . (? xs))
-           (let ( (node (str-merge "cons" (to-str i)))
-                  ((c1 str1) (dot-it (shl i 1) x))
-                  ((c2 str2) (dot-it (+ 1 (shl i 1)) xs))
-                  )
-             (list node (str-merge "   " node " [label=\"cons\"]\n"
-                                   str1 "\n"
-                                   str2 "\n"
-                                   "   " node " -> " c1 ";\n"
-                                   "   " node " -> " c2 ";\n"
-                                   )
-                   )
-             )
-           )
-         ( (? x)
-           (let ( (node (str-merge "atom" (to-str i))) )
-             (list node (str-merge "   " node " [label=\"" (to-str x)  "\"]"))
-             )
-          )
-         )
-  )
-
-(defun to-dot (x)
-  (str-merge "digraph SExpression {\n"
-             "   node [shape=ellipse, fontsize=12];\n"
-             "   edge [fontsize=10];\n"
-             (car (cdr (dot-it 1u64 x))) "\n}"))
-
-
-(defun render-dot (filename code)
-  (let ( (dot-str (to-dot code))
-         (name-dot (str-merge "./images/" filename ".dot"))
-         (name-png (str-merge "./images/" filename ".png"))
-         (fp-dot (fopen name-dot "w"))
-         (fp-png (fopen name-png "w"))
-         )
-    {
-    (fwrite fp-dot dot-str)
-    (unsafe-call-system (str-merge "dot " name-dot " -Tpng > " name-png))
-    }
-    ))
-
 (def ch-symbols
      (section 2 "About Symbols"
               ( list
@@ -829,10 +513,12 @@
   (ref-entry "/"
              (list
               (para (list "Division. The form of a `/` expression is `(/ expr1 ... exprN)`."
+                          "The resulting type is the same as the inputs (after their types have been promoted of course)."
                           ))
               (code '((/ 128 2)
                       (read-eval "(/ 6.28 2)")
-                      (/ 256 2 2 2 2 2 2 2)))
+                      (/ 256 2 2 2 2 2 2 2)
+                      (/ 5 2)))
               end)))
 
 (define arith-mod
@@ -845,6 +531,24 @@
                       (mod 1024 100)
                       (mod -7 5)))
               end)))
+              
+(define arith-int-div
+  (ref-entry "//"
+             (list
+              (para (list "Integer division operation. Like normal division except if the result is a floating point value"
+                          "it is cast to an integer, which floors the result. The form of a `//` expression is"
+                          "`(// expr1 ... exprN)`."
+                          "Can be used as a elegant complement to `mod`, with `//` returning the quotient and `mod`"
+                          "returning the remainder of a division."
+                          ))
+              (code '((// 5.0 2)
+                      {
+                        (var total-seconds 62.5)
+                        (var minutes (// total-seconds 60))
+                        (var seconds (mod total-seconds 60))
+                        (str-join (list (str-from-n minutes) "m " (str-from-n seconds) "s") "")
+                      })
+              end))))
 
 (define arithmetic
   (section 2 "Arithmetic"
@@ -854,7 +558,7 @@
                  arith-mul
                  arith-div
                  arith-mod
-                 )
+                 arith-int-div)
            ))
 
 ;; Comaprisons section
@@ -1042,6 +746,45 @@
                  bool-and
                  bool-or
                  bool-not
+                 )
+           ))
+
+;; Predicates
+
+(define is-a-list
+  (ref-entry "list?"
+             (list
+              (para (list "the `list?` predicate is true for all lists, empty (nil) or not."
+                          ))
+              (code '((list? nil)
+                      (list? '())
+                      (list? (list 1 2 3))
+                      (list? '(1 2 3))
+                      (list? 2)
+                      (list? 'kurt-russel)
+                      ))
+              end)))
+
+(define is-a-number
+  (ref-entry "number?"
+             (list
+              (para (list "the `number?` predicate is true for all numbers."
+                          ))
+              (code '((number? nil)
+                      (number? 1)
+                      (number? 2u)
+                      (number? 3.14f32)
+                      (number? 'michael-shanks)
+                      (number? 'james-spader)
+                      ))
+              end)))
+
+
+(define predicates
+  (section 2 "Predicates"
+           (list 'hline
+                 is-a-list
+                 is-a-number
                  )
            ))
 
@@ -1730,7 +1473,8 @@
                           "`(read string)`."
                           ))
               (code '((read-eval "(read \"1\")")
-                      (read-eval "(read \"(lambda (x) (+ x 1))\"")
+                      (read-eval "(read \"(+ 1 2)\")")
+                      (read-eval "(read \"(lambda (x) (+ x 1))\")")
                       ))
               end)))
 
@@ -2027,7 +1771,7 @@
   (ref-entry "rotate"
              (list
               (para (list "`rotate` creates a list containing the same elements as an existing list but rotated some number of step along a direction."
-                          "The form of a `reverse` expression is `(rotate list-exp dist-expr)`."
+                          "The form of a `rotate` expression is `(rotate list-exp dist-expr)`."
                           "The sign of the value dist-expr evaluates to, decides direction of rotation."
                           ))
               (code '((define apa (list 1 2 3 4 5 6 7 8 9 10))
@@ -2196,6 +1940,7 @@
               (para (list "Create an array of bytes. The form of a `bufcreate` expression is `(bufcreate size-expr)`"
                           ))
               (code '((define data (bufcreate 10))
+		      (define empty-array (bufcreate 0))
                       ))
               end)))
 
@@ -2302,6 +2047,62 @@
                  arrays-bufclear
                  arrays-literal
                  )))
+
+;; Defragmentable memory
+
+(define defrag-introduction
+    (list 
+     (para (list "LBM has two types of memory, the HEAP and the LBM_MEMORY. Lists and pairs are all stored on the heap."
+		 "Arrays and large values (such as 64bit numbers are stored on LBM_MEMORY."
+		 "The HEAP has a nice property that all allocations on it are the same size and therefore the HEAP is imune"
+		 "the problems caused by fragmentation."
+		 "On LBM_MEMORY arbitrarily sized arrays can be allocated and fragmentation can cause an allocation to fail even"
+		 "though there is enough free bytes."
+		 ))
+     (para (list "One way to resolve the fragmentation problem is to use a compacting garbage collector."
+		 "We have opted to not use a compacting garbage collector on the LBM_MEMORY as it is quite complicated."
+		 "It is extra complicated given how this memory is a shared resource between C extensions and the lisp runtime system."
+		 ))
+     (para (list "Our solution is to allow the programmer to create a memory block inside of the LBM_MEMORY in which we will run a defragmentation"
+		 "routine when needed. The defragmentable memory can only be used to allocate non-zero sized byte arrays on the lisp side."
+		 "The idea is that the programmer calculates the maximum size of simultaneously used arrays (+ the overhead of 3 words per allocation)"
+		 "needed for a small critical set of arrays used in the program and allocates a defragmentable memory of that size."
+		 ))
+     (para (list "The LBM (non-compacting) gabage collector frees arrays from a defragmentable memory area automatically."
+		 "An allocation in the defragmentable memory area that fails triggers garbage collection followed by compaction (if needed)."
+		 ))
+     )
+  )
+
+(define defrag-dm-create
+    (ref-entry "dm-create"
+	       (list
+		(para (list "`dm-create` creates a region of defragmentable memory for bytearrays within LBM memory."
+			    "The form of a `dm-create` expression is `(dm-create size-expr)`." 
+			    ))
+		(code '((define dm (dm-create 1000))))
+		)))
+
+(define defrag-dm-alloc
+    (ref-entry "dm-alloc"
+	       (list
+		(para (list "`dm-alloc` is used to allocate a byte-array from a region of defragmentable memory."
+			    "The form of a `dm-alloc` expression is `(dm-alloc DM-expr size-expr)`."
+			    "where `DM-expr` evaluates to the defragmentable region to allocate from and `size-expr` is the number of bytes to allocate."
+			    "Each allocation uses up 12 extre bytes of header that you do not include in `size-expr`."
+		      ))
+		(code '((define arr10 (dm-alloc dm 10))
+			(define arr100 (dm-alloc dm 100))))
+	       )))
+
+(define defrag-mem
+    (section 2 "Defragmentable memory"
+	     (list defrag-introduction
+		   'hline
+		   defrag-dm-create
+		   defrag-dm-alloc
+		   )))
+
 
 ;; Pattern matching
 
@@ -2499,6 +2300,32 @@
                           ))
               end)))
 
+(define conc-kill
+  (ref-entry "kill"
+             (list
+              (para (list "The `kill` function allows you to force terminate"
+                          "another thread. It has the signature `(kill thread-id-expr val-expr)`,"
+                          "where `thread-id-expr` is the thread that you want to terminate,"
+                          "and `val-expr` is the final result the thread dies with."
+                          ))
+              (program '(((defun f () (f))
+                          (define id (spawn f))
+                          (kill id nil)
+                          )
+                         ))
+              (para (list "The `val-expr` can be observed if the thread exit status is captured using `spawn-trap`"
+                          ))
+              (program '(((defun f () (f))
+                          (define id (spawn-trap f))
+                          (kill id 'kurt-russel)
+                          (recv (( ? x) x))
+                          )
+                         ))
+              (para (list "The `val-expr` could be used to communicate to a thread monitor that the"
+                          "thread it monitors has been intentionally but externally killed."
+                          ))
+              
+              end)))
 
 
 
@@ -2533,6 +2360,7 @@
             conc-atomic
             conc-exit-ok
             conc-exit-error
+            conc-kill
             )
            ))
 
@@ -2564,6 +2392,8 @@
              (list
               (para (list "Like [recv](#recv), `recv-to` is used to receive"
                           "messages but `recv-to` takes an extra timeout argument."
+                          "It then receives a message containing the symbol"
+                          "`timeout` after the timeout period ends."
                           ))
               (para (list "The form of an `recv-to` expression is"
                           "```clj"
@@ -2576,6 +2406,13 @@
               (program '(((send (self) 28)
                           (recv-to 0.1
                                    ((? n) (+ n 1))
+                                   (timeout 'no-message))
+
+                          )
+                         ))
+              (program '(((send (self) 'not-foo)
+                          (recv-to 0.1
+                                   (foo 'got-foo)
                                    (timeout 'no-message))
 
                           )
@@ -2891,8 +2728,11 @@
 (define const-symbol-strings
   (ref-entry "@const-symbol-strings"
              (list
-              (para (list "if `@const-symbol-strings` directive is placed in a file, symbols will be created"
-                          "in flash memory instead of the arrays memory."
+              (para (list "`@const-symbol-strings` functionality have been combined with `@const-start` and `@const-end`."
+                          "Now symbols created while in a const block, end up in flash storage."
+                          ))
+              (para (list "~~if `@const-symbol-strings` directive is placed in a file, symbols will be created"
+                          "in flash memory instead of the arrays memory.~~"
                           ))
               end)))
 
@@ -3066,12 +2906,6 @@
 
 ;; Manual
 
-(define info
-  (let (((major minor patch) (lbm-version))
-        (version-str (str-merge (to-str major) "." (to-str minor) "." (to-str patch))))
-        (para (list (str-merge "This document was generated by LispBM version " version-str))
-        )))
-
 (define manual
   (list
    (section 1 "LispBM Reference Manual"
@@ -3083,6 +2917,7 @@
                            (list arithmetic
                                  comparisons
                                  boolean
+                                 predicates
                                  bitwise
                                  nil-and-t
                                  quotes
@@ -3091,6 +2926,7 @@
                                  lists
                                  assoc-lists
                                  arrays
+				 defrag-mem
                                  pattern-matching
                                  concurrency
                                  message-passing

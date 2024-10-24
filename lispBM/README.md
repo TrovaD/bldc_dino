@@ -91,7 +91,7 @@ printed on a separate line.
 Similar to `print`, but only takes one string as an argument and prints it without
 quotes. The string extensions can be used to format the output.
 
-**Note**  
+**Note:**  
 This extension can print longer strings than `print`. `print` will trim any
 output over 256 bytes, while this extension only trims strings over 400 bytes.
 
@@ -100,6 +100,41 @@ Example:
 ```clj
 (puts "Hello World")
 > Hello World
+```
+
+---
+
+#### set-print-prefix
+
+| Platforms | Firmware |
+|---|---|
+| ESC, Express | 6.06+ |
+
+```clj
+(set-print-prefix str)
+```
+
+Adds a prefix to prints that are sent to the repl in VESC Tool. Useful when
+multiple devices print to the repl over CAN at the same time for determining
+which print comes from which device. The prefix can't be longer than 50 bytes
+(including the null byte), and `str` will be trimmed if longer. The value is
+remembered until the next power cycle.
+
+**Note:**  
+This is applied to all text sent to the repl, not just text created by
+calling `print` or `puts`.
+
+
+Example:
+
+```clj
+(set-print-prefix "dev-1| ")
+(puts "This message has\na clear origin!")
+```
+which outputs
+```
+dev-1| This message has
+dev-1| a clear origin!
 ```
 
 ---
@@ -641,6 +676,7 @@ Read system info parameter param. Example:
 (sysinfo 'has-phase-filters) ; t if hardware has phase filters. ESC only.
 (sysinfo 'uuid) ; STM32 UUID. ESC only.
 (sysinfo 'runtime) ; Total runtime in seconds. ESC only.
+(sysinfo 'odometer) ; Total odometer in meters. ESC only. Added in 6.06.
 (sysinfo 'git-branch) ; Git branch name. ESC only.
 (sysinfo 'git-hash) ; Git hash of current commit. ESC only.
 (sysinfo 'compiler) ; GCC version, e.g. 7.3.1. ESC only.
@@ -674,6 +710,20 @@ Get statistics about the selected motor since boot (or since stats-reset). The f
 (stats 'stat-temp-motor-max) ; Maximum motor temp in degC
 (stats 'stat-count-time) ; Time since start of stat collection in seconds
 ```
+
+---
+
+#### set-odometer
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 6.06+ |
+
+```clj
+(set-odometer meters)
+```
+
+Set persistent odometer counter to meters.
 
 ---
 
@@ -1129,7 +1179,7 @@ Stop playing tones on all channels.
 
 ### Motor Get Commands
 
-**Note**  
+**Note:**  
 If the optional optFilter-argument is 1 in the commands below the result will be the average since that function was called the last time. That is also how the plots are filtered in VESC Tool. Polling realtime data in VESC Tool at the same time will affect the averaging as it uses the same integrator. This function was added in firmware 6.05.
 
 ---
@@ -1300,6 +1350,26 @@ Get FOC estimated motor inductance Henry. Only works while the first HFI is runn
 
 ---
 
+#### get-hfi-res
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 6.06+ |
+
+```clj
+(get-hfi-res)
+```
+
+Get HFI result. Only valid when using single or double pulse ambiguity resolution mode. Returns a list with the following valies:
+
+```clj
+(i1 i2 diff)
+```
+
+Where i1 is the delta current for the first voltage, i2 is the response current for the second voltage and diff is the difference between them. This can be used to determine how much ambiguity resolution current is required for a given motor.
+
+---
+
 #### get-duty
 
 | Platforms | Firmware |
@@ -1356,6 +1426,20 @@ Same as get-rpm-fast, but with even less filtering. This give the RPM-estimation
 
 ---
 
+#### get-rpm-set
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 6.06+ |
+
+```clj
+(get-rpm-set)
+```
+
+Get motor ERPM setpoint for PID speed controller.
+
+---
+
 #### get-pos
 
 | Platforms | Firmware |
@@ -1409,6 +1493,20 @@ Get motor temperature.
 ```
 
 Get speed in meters per second. Requires that the number of motor poles, wheel diameter and gear ratio are set up correctly.
+
+---
+
+#### get-speed-set
+
+| Platforms | Firmware |
+|---|---|
+| ESC | 6.06+ |
+
+```clj
+(get-speed-set)
+```
+
+Get PID speed setpoint in meters per second. Requires that the number of motor poles, wheel diameter and gear ratio are set up correctly.
 
 ---
 
@@ -2656,7 +2754,7 @@ Raw data commands useful for debugging hardware issues.
 
 Get raw current measurements. Motor is the motor index (1 or 2), phase is the phase (1, 2 or 3) and useRaw is whether to convert the measurements to currents or to use raw ADC values.
 
-**NOTE**  
+**Note:**  
 These samples can come from either V0 or V7 depending on when the function is called (although most likely V7 as less other computations happen then), so when the motor is running this is most likely not going to look good, especially if the hardware does not have phase shunts. This function is intended for debugging hardware and returns just was goes into the ADC without any processing.
 
 Example for reading phase B on motor 1 as raw ADC values:
@@ -3417,6 +3515,12 @@ The following selection of app and motor parameters can be read and set from Lis
 'foc-motor-r            ; Motor resistance in milliOhm
 'foc-motor-flux-linkage ; Motor flux linkage in milliWeber
 'foc-observer-gain      ; Observer gain x1M
+'foc-hfi-amb-mode       ; HFI Ambiguity Resolve Mode (FW 6.06)
+                        ; 0 : Six Vector
+                        ; 1 : ID Single Pulse
+                        ; 2 : ID Double Pulse
+'foc-hfi-amb-current    ; HFI Ambiguity Resolve Current (FW 6.06)
+'foc-hfi-amb-tres       ; HFI Ambiguity Resolve Threshold (FW 6.06)
 'foc-hfi-voltage-start  ; HFI start voltage (V) (for resolving ambiguity)
 'foc-hfi-voltage-run    ; HFI voltage (V) HFI voltage at min current
 'foc-hfi-voltage-max    ; HFI voltage (V) at max current
@@ -3438,7 +3542,11 @@ The following selection of app and motor parameters can be read and set from Lis
 'foc-sl-openloop-time   ; Stay in openloop for this amount of time
 'foc-temp-comp          ; Use observer temperature compensation
 'foc-temp-comp-base-temp ; Temperature at which parameters were measured
-'foc-offsets-cal-on-boot ; Measure offsets at boot (Added in FW 6.05)
+'foc-offsets-cal-on-boot ; Measure offsets at boot (FW 6.05 only)
+'foc-offsets-cal-mode   ; Offset Calibration Mode (Added in FW 6.06)
+                        ; Bit 0: Calibrate on Boot
+                        ; Bit 1: Enable Write from VESC Tool
+                        ; Bit 2: Auto-calibrate when undriven
 'foc-fw-current-max     ; Maximum field weakening current (Added in FW 6.05)
 'foc-fw-duty-start      ; Duty where field weakening starts (Added in FW 6.05)
 'foc-short-ls-on-zero-duty ; Short low-side FETs on 0 duty (Added in FW 6.05)
@@ -3549,6 +3657,7 @@ The following selection of app and motor parameters can be read and set from Lis
                         ; 0: Disabled
                         ; 1: Enabled
                         ; 2: Enabled and encrypted with pin
+                        ; 3: Enabled with scripting
 'ble-name               ; Device name (also the name that shows up in VESC Tool)
 'ble-pin                ; BLE pin code
 ```
@@ -4976,7 +5085,7 @@ Byte arrays will be de-allocated by the garbage collector on a regular basis, bu
 
 This will clear the allocated memory for `arr`.
 
-**Note**  
+**Note:**  
 Strings in lispBM are treated the same as byte arrays, so all of the above can be done to the characters in strings too.
 
 ---
@@ -5018,7 +5127,7 @@ marked as smaller in an efficient manner which avoids any new allocations.
 
 It is possible to shrink an array to a length of zero.
 
-**Note**  
+**Note:**  
 The array will be resized in place. The returned reference to `arr` is just for
 convenience. (Unless `opt-copy-symbol` is `'copy` of course.)
 
@@ -5966,6 +6075,20 @@ Connect SD-card on pin-mosi, pin-miso, pin-sck and pin-cs. The optional argument
 
 ---
 
+#### f-connect-nand
+
+| Platforms | Firmware |
+|---|---|
+| Express | 6.05+ |
+
+```clj
+(f-connect-nand pin-mosi pin-miso pin-sck pin-cs optSpiSpeed)
+```
+
+Connect NAND-flash memory on pin-mosi, pin-miso, pin-sck and pin-cs. The optional argument optSpiSpeed can be used to specify the SPI speed (default 20000 Hz). Returns true on success, nil otherwise.
+
+---
+
 #### f-disconnect
 
 | Platforms | Firmware |
@@ -5976,7 +6099,7 @@ Connect SD-card on pin-mosi, pin-miso, pin-sck and pin-cs. The optional argument
 (f-disconnect)
 ```
 
-Disconnect SD-card.
+Disconnect SD-card or NAND-Flash.
 
 ---
 
@@ -6762,6 +6885,46 @@ Example:
 (print (zip-ls test))
 
 > (("test.txt" 7) ("fw.bin" 291871))
+```
+
+---
+
+## Crypto
+
+---
+
+#### aes-ctr-crypt
+
+| Platforms | Firmware |
+|---|---|
+| Express | 6.06+ |
+
+```clj
+(aes-ctr-crypt key counter data start-offset length)
+```
+
+Performs in-place AES-CTR (128/192/256) encryption/decryption. Counter will also be updated.
+
+Example:
+
+```clj
+(def data [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]) 
+(def key [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]) 
+(def counter [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15])
+(def start-offset 5)
+(def len 6)
+; Encrypt data
+(aes-ctr-crypt key counter data start-offset len)
+(print data)
+> [0 1 2 3 4 15 146 12 189 72 100 11 12 13 14 15]
+(print counter)
+> [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16]
+; Reset counter
+(setq counter [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15])
+; Decrypt data
+(aes-ctr-crypt key counter data start-offset len)
+(print data)
+> [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]
 ```
 
 ---

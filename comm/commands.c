@@ -540,7 +540,8 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 	case COMM_SET_MCCONF: {
 #ifndef	HW_MCCONF_READ_ONLY
 		mc_configuration *mcconf = mempools_alloc_mcconf();
-		*mcconf = *mc_interface_get_configuration();
+		volatile const mc_configuration *mcconf_old = mc_interface_get_configuration();
+		*mcconf = *mcconf_old;
 
 		if (confgenerator_deserialize_mcconf(data, mcconf)) {
 			utils_truncate_number(&mcconf->l_current_max_scale , 0.0, 1.0);
@@ -554,6 +555,21 @@ void commands_process_packet(unsigned char *data, unsigned int len,
 			mcconf->lo_current_min = mcconf->l_current_min * mcconf->l_current_min_scale;
 			mcconf->lo_in_current_max = mcconf->l_in_current_max;
 			mcconf->lo_in_current_min = mcconf->l_in_current_min;
+
+			// Keep old offsets if writing offsets is disabled
+			if (!(mcconf->foc_offsets_cal_mode & (1 << 1))) {
+				mcconf->foc_offsets_current[0] = mcconf_old->foc_offsets_current[0];
+				mcconf->foc_offsets_current[1] = mcconf_old->foc_offsets_current[1];
+				mcconf->foc_offsets_current[2] = mcconf_old->foc_offsets_current[2];
+
+				mcconf->foc_offsets_voltage[0] = mcconf_old->foc_offsets_voltage[0];
+				mcconf->foc_offsets_voltage[1] = mcconf_old->foc_offsets_voltage[1];
+				mcconf->foc_offsets_voltage[2] = mcconf_old->foc_offsets_voltage[2];
+
+				mcconf->foc_offsets_voltage_undriven[0] = mcconf_old->foc_offsets_voltage_undriven[0];
+				mcconf->foc_offsets_voltage_undriven[1] = mcconf_old->foc_offsets_voltage_undriven[1];
+				mcconf->foc_offsets_voltage_undriven[2] = mcconf_old->foc_offsets_voltage_undriven[2];
+			}
 
 			commands_apply_mcconf_hw_limits(mcconf);
 			conf_general_store_mc_configuration(mcconf, mc_interface_get_motor_thread() == 2);
@@ -1658,10 +1674,41 @@ int commands_printf_lisp(const char* format, ...) {
 	int len;
 
 	print_buffer[0] = COMM_LISP_PRINT;
-	len = vsnprintf(print_buffer + 1, (PRINT_BUFFER_SIZE - 1), format, arg);
-	va_end (arg);
+	int offset = 1;
+	size_t prefix_len = sprintf(print_buffer + offset, lispif_print_prefix(), "%s");
+	offset += prefix_len;
 
-	int len_to_print = (len < (PRINT_BUFFER_SIZE - 1)) ? len + 1 : PRINT_BUFFER_SIZE;
+	len = vsnprintf(
+		print_buffer + offset, (PRINT_BUFFER_SIZE - offset), format, arg
+	);
+	va_end(arg);
+
+	int len_to_print = (len < (PRINT_BUFFER_SIZE - offset)) ? len + offset : PRINT_BUFFER_SIZE;
+	
+	for (size_t i = 2; i < (size_t)len_to_print; i++) {
+		// TODO: Handle newline character in prefix?
+		char chr = print_buffer[i - 1];
+		if (chr == '\0') {
+			break;
+		}
+		if (chr == '\n') {
+			int remaining_len = len_to_print - i;
+			if (remaining_len > (int)(PRINT_BUFFER_SIZE - i - prefix_len)) {
+				remaining_len = PRINT_BUFFER_SIZE - i - prefix_len;
+			}
+			if (remaining_len <= 0) {
+				break;
+			}
+			memmove(print_buffer + i + prefix_len, print_buffer + i, remaining_len);
+			memmove(print_buffer + i, lispif_print_prefix(), prefix_len);
+			i += prefix_len;
+			len_to_print += prefix_len;
+		}
+		
+		if (len_to_print > PRINT_BUFFER_SIZE) {
+			len_to_print = PRINT_BUFFER_SIZE;
+		}
+	}
 
 	if (len > 0) {
 		if (print_buffer[len_to_print - 1] == '\n') {
@@ -1839,6 +1886,7 @@ void commands_apply_mcconf_hw_limits(mc_configuration *mcconf) {
 #ifdef HW_LIM_CURRENT
 	utils_truncate_number(&mcconf->l_current_max, HW_LIM_CURRENT);
 	utils_truncate_number(&mcconf->l_current_min, HW_LIM_CURRENT);
+	utils_truncate_number(&mcconf->foc_hfi_amb_current, HW_LIM_CURRENT);
 #endif
 #ifdef HW_LIM_CURRENT_IN
 	utils_truncate_number(&mcconf->l_in_current_max, HW_LIM_CURRENT_IN);

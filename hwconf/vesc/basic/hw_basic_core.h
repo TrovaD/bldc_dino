@@ -22,6 +22,10 @@
 
 #ifdef HW_BASIC
   #define HW_NAME			"VESC_BASIC"
+#elif defined(HW_BASIC_035) // 0.35 mOhm shunts
+  #define HW_NAME			"VESC_BASIC_035"
+#elif defined(HW_BASIC_025) // 0.25 mOhm shunts
+  #define HW_NAME			"VESC_BASIC_025"
 #else
   #error "Must define hardware type"
 #endif
@@ -124,7 +128,13 @@
 #define CURRENT_AMP_GAIN		20.0
 #endif
 #ifndef CURRENT_SHUNT_RES
+#ifdef HW_BASIC_035
+#define CURRENT_SHUNT_RES		0.00035
+#elif defined(HW_BASIC_025)
+#define CURRENT_SHUNT_RES		0.00025
+#else
 #define CURRENT_SHUNT_RES		0.0005
+#endif
 #endif
 
 // Input voltage
@@ -253,9 +263,19 @@
 #endif
 
 // Setting limits
+#ifdef HW_BASIC_035
+#define HW_LIM_CURRENT			-180.0, 180.0
+#define HW_LIM_CURRENT_IN		-150.0, 150.0
+#define HW_LIM_CURRENT_ABS		0.0, 250.0
+#elif defined(HW_BASIC_025)
+#define HW_LIM_CURRENT			-200.0, 200.0
+#define HW_LIM_CURRENT_IN		-150.0, 150.0
+#define HW_LIM_CURRENT_ABS		0.0, 300.0
+#else
 #define HW_LIM_CURRENT			-150.0, 150.0
 #define HW_LIM_CURRENT_IN		-130.0, 130.0
 #define HW_LIM_CURRENT_ABS		0.0, 160.0
+#endif
 #define HW_LIM_VIN				11.0, 94.0
 #define HW_LIM_ERPM				-200e3, 200e3
 #define HW_LIM_DUTY_MIN			0.0, 0.1

@@ -58,8 +58,10 @@ what we call "extensions" which are C functions that can be called from your Lis
 ### Documentation
 
  - Work in progress [LispBM language reference](./doc/lbmref.md).
+ - Work in prograss [LispBM display library reference](./doc/displayref.md).
+ - [LispBM runtime system library reference](./doc/runtimeref.md).
  - Gotchas and caveats [Gotchas and caveats](./doc/gotchas.md).
- - Work in progress [LispBM programming manual](./doc/manual).
+ - !OUTDATED! [LispBM programming manual](./doc/manual).
  - C code documentation can be found [here](http://svenssonjoel.github.io/lbmdoc/html/index.html).
  - LispBM's internals are documented as a series of (now quite outdated) [blog posts](http://svenssonjoel.github.io).
  - There are [demonstrations on YouTube](https://youtube.com/playlist?list=PLtf_3TaqZoDOQqZcB9Yj-R1zS2DWDZ9q9).
@@ -74,10 +76,27 @@ The REPL depends on libreadline.
 * libreadline
 * lib32readline
 * gcc-multilib
+* libpng
 
 On Ubunty you can obtain the depencies by:
-`sudo apt-get install gcc-multilib libreadline-dev lib32readline-dev`
+```shell
+sudo apt-get install gcc-multilib libreadline-dev lib32readline-dev libpng-dev libpng-dev:i386
+```
 
 Then issue command `make` in the repl directory.
 
+There is also a Nix flake (see details below). You can build and run the repl using `nix run`. This will build the 32 bit version. For the 64 bit repl you instead run `nix run .#repl64`.
 
+### Editor support
+
+* [vesc_tool](https://vesc-project.com/vesc_tool)
+* [vscode support](https://marketplace.visualstudio.com/items?itemName=rasmus-soderhielm.lispbm-language-support)
+
+## Development
+
+There is a Nix flake to help you build the repl and documentation. It outputs packages for the 32 and 64 bit repl: `repl` and `repl64`, the documentation: `doc`, and the doxygen source code documentation: `c-doc`. Assuming you have Nix installed, you can build these using
+```shell
+nix build .#<package>
+```
+
+The generated output is then placed in the `result/` directory. However `doc` and `c-doc` packages might not make much sense to build in this way because they are supposed to generate files inside the repository tree. Therefore, it makes more sense to instead enter their respective development environment with `nix develop .#<package>`. This places you in a new shell with the required dependencies installed where you can build them with `make`. 

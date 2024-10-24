@@ -959,7 +959,7 @@ Multiplying an arbitrary number of values. The form of a `*` expression is `(* e
 
 ### /
 
-Division. The form of a `/` expression is `(/ expr1 ... exprN)`. 
+Division. The form of a `/` expression is `(/ expr1 ... exprN)`. The resulting type is the same as the inputs (after their types have been promoted of course). 
 
 <table>
 <tr>
@@ -1006,6 +1006,24 @@ Division. The form of a `/` expression is `(/ expr1 ... exprN)`.
 
 ```clj
 (/ 256 2 2 2 2 2 2 2)
+```
+
+
+</td>
+<td>
+
+```clj
+2
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(/ 5 2)
 ```
 
 
@@ -1091,6 +1109,60 @@ Modulo operation. The form of a `mod` expression is `(mod expr1 exp2)`. The modu
 </tr>
 </table>
 
+
+
+
+---
+
+
+### //
+
+Integer division operation. Like normal division except if the result is a floating point value it is cast to an integer, which floors the result. The form of a `//` expression is `(// expr1 ... exprN)`. Can be used as a elegant complement to `mod`, with `//` returning the quotient and `mod` returning the remainder of a division. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+```clj
+(// 5.000000f32 2)
+```
+
+
+</td>
+<td>
+
+```clj
+2
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(progn (var total-seconds 62.500000f32)
+       (var minutes (// total-seconds 60))
+       (var seconds (mod total-seconds 60))
+       (str-join (list (str-from-n minutes) m  (str-from-n seconds) s) [0]))
+```
+
+
+</td>
+<td>
+
+```clj
+1m 2.5s
+```
+
+
+</td>
+</tr>
+</table>
 
 
 
@@ -2058,6 +2130,259 @@ t
 
 ```clj
 (not 42)
+```
+
+
+</td>
+<td>
+
+```clj
+nil
+```
+
+
+</td>
+</tr>
+</table>
+
+
+
+
+---
+
+## Predicates
+
+
+---
+
+
+### list?
+
+the `list?` predicate is true for all lists, empty (nil) or not. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? nil)
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? 'nil)
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? (list 1 2 3))
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? '(1 2 3))
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? 2)
+```
+
+
+</td>
+<td>
+
+```clj
+nil
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(list? 'kurt-russel)
+```
+
+
+</td>
+<td>
+
+```clj
+nil
+```
+
+
+</td>
+</tr>
+</table>
+
+
+
+
+---
+
+
+### number?
+
+the `number?` predicate is true for all numbers. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? nil)
+```
+
+
+</td>
+<td>
+
+```clj
+nil
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? 1)
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? 2u)
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? 3.140000f32)
+```
+
+
+</td>
+<td>
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? 'michael-shanks)
+```
+
+
+</td>
+<td>
+
+```clj
+nil
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(number? 'james-spader)
 ```
 
 
@@ -4879,7 +5204,25 @@ Parses a string resulting in either an expression or the <a href="#read_error">r
 <td>
 
 ```clj
-(read "(lambda (x) (+ x 1))"
+(read "(+ 1 2)")
+```
+
+
+</td>
+<td>
+
+```clj
+(+ 1 2)
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(read "(lambda (x) (+ x 1))")
 ```
 
 
@@ -5929,7 +6272,7 @@ apa
 
 ### rotate
 
-`rotate` creates a list containing the same elements as an existing list but rotated some number of step along a direction. The form of a `reverse` expression is `(rotate list-exp dist-expr)`. The sign of the value dist-expr evaluates to, decides direction of rotation. 
+`rotate` creates a list containing the same elements as an existing list but rotated some number of step along a direction. The form of a `rotate` expression is `(rotate list-exp dist-expr)`. The sign of the value dist-expr evaluates to, decides direction of rotation. 
 
 <table>
 <tr>
@@ -6287,7 +6630,25 @@ Create an array of bytes. The form of a `bufcreate` expression is `(bufcreate si
 <td>
 
 ```clj
+[0 0 0 0 0 0 0 0 0 0]
+```
 
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(define empty-array (bufcreate 0))
+```
+
+
+</td>
+<td>
+
+```clj
+[]
 ```
 
 
@@ -6409,7 +6770,7 @@ Read a value from a buffer. The contents of a buffer can be read as a sized inte
 <td>
 
 ```clj
--1i32
+-1
 ```
 
 
@@ -6783,7 +7144,7 @@ data
 <td>
 
 ```clj
-
+[0 0 0 0 0 0 0 0]
 ```
 
 
@@ -6971,6 +7332,103 @@ The form of the `[` and `]` syntax is `[ val1 ... valN ]`.
 </tr>
 </table>
 
+
+
+
+---
+
+## Defragmentable memory
+
+LBM has two types of memory, the HEAP and the LBM_MEMORY. Lists and pairs are all stored on the heap. Arrays and large values (such as 64bit numbers are stored on LBM_MEMORY. The HEAP has a nice property that all allocations on it are the same size and therefore the HEAP is imune the problems caused by fragmentation. On LBM_MEMORY arbitrarily sized arrays can be allocated and fragmentation can cause an allocation to fail even though there is enough free bytes. 
+
+One way to resolve the fragmentation problem is to use a compacting garbage collector. We have opted to not use a compacting garbage collector on the LBM_MEMORY as it is quite complicated. It is extra complicated given how this memory is a shared resource between C extensions and the lisp runtime system. 
+
+Our solution is to allow the programmer to create a memory block inside of the LBM_MEMORY in which we will run a defragmentation routine when needed. The defragmentable memory can only be used to allocate non-zero sized byte arrays on the lisp side. The idea is that the programmer calculates the maximum size of simultaneously used arrays (+ the overhead of 3 words per allocation) needed for a small critical set of arrays used in the program and allocates a defragmentable memory of that size. 
+
+The LBM (non-compacting) gabage collector frees arrays from a defragmentable memory area automatically. An allocation in the defragmentable memory area that fails triggers garbage collection followed by compaction (if needed). 
+
+
+---
+
+
+### dm-create
+
+`dm-create` creates a region of defragmentable memory for bytearrays within LBM memory. The form of a `dm-create` expression is `(dm-create size-expr)`. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+```clj
+(define dm (dm-create 1000))
+```
+
+
+</td>
+<td>
+
+```clj
+DM
+```
+
+
+</td>
+</tr>
+</table>
+
+
+
+---
+
+
+### dm-alloc
+
+`dm-alloc` is used to allocate a byte-array from a region of defragmentable memory. The form of a `dm-alloc` expression is `(dm-alloc DM-expr size-expr)`. where `DM-expr` evaluates to the defragmentable region to allocate from and `size-expr` is the number of bytes to allocate. Each allocation uses up 12 extre bytes of header that you do not include in `size-expr`. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+```clj
+(define arr10 (dm-alloc dm 10))
+```
+
+
+</td>
+<td>
+
+```clj
+[0 0 0 0 0 0 0 0 0 0]
+```
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+```clj
+(define arr100 (dm-alloc dm 100))
+```
+
+
+</td>
+<td>
+
+```clj
+[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+```
+
+
+</td>
+</tr>
+</table>
 
 
 
@@ -7271,7 +7729,7 @@ Use `self` to obtain the thread-id of the thread in which `self` is evaluated. T
 <td>
 
 ```clj
-654
+3197
 ```
 
 
@@ -7420,6 +7878,79 @@ The `exit-error` function terminates the thread with an error specified by the p
 
 ---
 
+
+### kill
+
+The `kill` function allows you to force terminate another thread. It has the signature `(kill thread-id-expr val-expr)`, where `thread-id-expr` is the thread that you want to terminate, and `val-expr` is the final result the thread dies with. 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+
+```clj
+(defun f nil (f))
+(define id (spawn f))
+(kill id nil)
+
+```
+
+
+</td>
+<td>
+
+
+```clj
+t
+```
+
+
+</td>
+</tr>
+</table>
+
+The `val-expr` can be observed if the thread exit status is captured using `spawn-trap` 
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+
+```clj
+(defun f nil (f))
+(define id (spawn-trap f))
+(kill id 'kurt-russel)
+(recv ((? x) x))
+
+```
+
+
+</td>
+<td>
+
+
+```clj
+(exit-ok 178333 kurt-russel)
+```
+
+
+</td>
+</tr>
+</table>
+
+The `val-expr` could be used to communicate to a thread monitor that the thread it monitors has been intentionally but externally killed. 
+
+
+
+
+---
+
 ## Message-passing
 
 
@@ -7473,7 +8004,7 @@ To receive a message use the `recv` command. A process will block on a `recv` un
 
 ### recv-to
 
-Like [recv](#recv), `recv-to` is used to receive messages but `recv-to` takes an extra timeout argument. 
+Like [recv](#recv), `recv-to` is used to receive messages but `recv-to` takes an extra timeout argument. It then receives a message containing the symbol `timeout` after the timeout period ends. 
 
 The form of an `recv-to` expression is ```clj (recv-to timeout-secs                 (pattern1 exp1)                 ...                 (patternN expN)) ``` 
 
@@ -7500,6 +8031,36 @@ The form of an `recv-to` expression is ```clj (recv-to timeout-secs             
 
 ```clj
 29
+```
+
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td> Example </td> <td> Result </td>
+</tr>
+<tr>
+<td>
+
+
+```clj
+(send (self) 'not-foo)
+(recv-to 0.100000f32
+         (foo 'got-foo)
+         (timeout 'no-message))
+
+```
+
+
+</td>
+<td>
+
+
+```clj
+0.100000f32
 ```
 
 
@@ -7646,7 +8207,7 @@ The `flatten` function takes a value as single argument and returns the flat rep
 <td>
 
 ```clj
-
+[5 0 0 0 6]
 ```
 
 
@@ -7682,7 +8243,7 @@ The `flatten` function takes a value as single argument and returns the flat rep
 <td>
 
 ```clj
-+
+[1 3 43 0 1 5 0 0 0 1 1 5 0 0 0 2 1 5 0 0 0 3 3 110 105 108 0]
 ```
 
 
@@ -7736,7 +8297,7 @@ A flat value is a byte-array containing an encoding of the value.
 <td>
 
 ```clj
-
+[5 0 0 0 6]
 ```
 
 
@@ -7772,7 +8333,7 @@ A flat value is a byte-array containing an encoding of the value.
 <td>
 
 ```clj
-+
+[1 3 43 0 1 5 0 0 0 1 1 5 0 0 0 2 1 5 0 0 0 3 3 110 105 108 0]
 ```
 
 
@@ -8033,7 +8594,9 @@ Flash memory can be used to store data and functions that are constant. Things c
 
 ### @const-symbol-strings
 
-if `@const-symbol-strings` directive is placed in a file, symbols will be created in flash memory instead of the arrays memory. 
+`@const-symbol-strings` functionality have been combined with `@const-start` and `@const-end`. Now symbols created while in a const block, end up in flash storage. 
+
+~~if `@const-symbol-strings` directive is placed in a file, symbols will be created in flash memory instead of the arrays memory.~~ 
 
 
 
@@ -8786,5 +9349,5 @@ Convert any numerical value to a double precision floating point value. If the i
 
 ---
 
-This document was generated by LispBM version 0.24.0 
+This document was generated by LispBM version 0.26.0 
 

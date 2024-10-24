@@ -112,6 +112,9 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_float16(buffer, conf->foc_current_filter_const, 10000, &ind);
 	buffer[ind++] = conf->foc_cc_decoupling;
 	buffer[ind++] = conf->foc_observer_type;
+	buffer[ind++] = conf->foc_hfi_amb_mode;
+	buffer_append_float16(buffer, conf->foc_hfi_amb_current, 10, &ind);
+	buffer[ind++] = (uint8_t)conf->foc_hfi_amb_tres;
 	buffer_append_float16(buffer, conf->foc_hfi_voltage_start, 10, &ind);
 	buffer_append_float16(buffer, conf->foc_hfi_voltage_run, 10, &ind);
 	buffer_append_float16(buffer, conf->foc_hfi_voltage_max, 10, &ind);
@@ -122,7 +125,7 @@ int32_t confgenerator_serialize_mcconf(uint8_t *buffer, const mc_configuration *
 	buffer_append_uint16(buffer, conf->foc_hfi_start_samples, &ind);
 	buffer_append_float32_auto(buffer, conf->foc_hfi_obs_ovr_sec, &ind);
 	buffer[ind++] = conf->foc_hfi_samples;
-	buffer[ind++] = conf->foc_offsets_cal_on_boot;
+	buffer[ind++] = conf->foc_offsets_cal_mode;
 	buffer_append_float32_auto(buffer, conf->foc_offsets_current[0], &ind);
 	buffer_append_float32_auto(buffer, conf->foc_offsets_current[1], &ind);
 	buffer_append_float32_auto(buffer, conf->foc_offsets_current[2], &ind);
@@ -448,6 +451,9 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_current_filter_const = buffer_get_float16(buffer, 10000, &ind);
 	conf->foc_cc_decoupling = buffer[ind++];
 	conf->foc_observer_type = buffer[ind++];
+	conf->foc_hfi_amb_mode = buffer[ind++];
+	conf->foc_hfi_amb_current = buffer_get_float16(buffer, 10, &ind);
+	conf->foc_hfi_amb_tres = buffer[ind++];
 	conf->foc_hfi_voltage_start = buffer_get_float16(buffer, 10, &ind);
 	conf->foc_hfi_voltage_run = buffer_get_float16(buffer, 10, &ind);
 	conf->foc_hfi_voltage_max = buffer_get_float16(buffer, 10, &ind);
@@ -458,7 +464,7 @@ bool confgenerator_deserialize_mcconf(const uint8_t *buffer, mc_configuration *c
 	conf->foc_hfi_start_samples = buffer_get_uint16(buffer, &ind);
 	conf->foc_hfi_obs_ovr_sec = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_hfi_samples = buffer[ind++];
-	conf->foc_offsets_cal_on_boot = buffer[ind++];
+	conf->foc_offsets_cal_mode = buffer[ind++];
 	conf->foc_offsets_current[0] = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_offsets_current[1] = buffer_get_float32_auto(buffer, &ind);
 	conf->foc_offsets_current[2] = buffer_get_float32_auto(buffer, &ind);
@@ -780,6 +786,9 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_current_filter_const = MCCONF_FOC_CURRENT_FILTER_CONST;
 	conf->foc_cc_decoupling = MCCONF_FOC_CC_DECOUPLING;
 	conf->foc_observer_type = MCCONF_FOC_OBSERVER_TYPE;
+	conf->foc_hfi_amb_mode = MCCONF_FOC_HFI_AMB_MODE;
+	conf->foc_hfi_amb_current = MCCONF_FOC_HFI_AMB_CURRENT;
+	conf->foc_hfi_amb_tres = MCCONF_FOC_HFI_AMB_TRES;
 	conf->foc_hfi_voltage_start = MCCONF_FOC_HFI_VOLTAGE_START;
 	conf->foc_hfi_voltage_run = MCCONF_FOC_HFI_VOLTAGE_RUN;
 	conf->foc_hfi_voltage_max = MCCONF_FOC_HFI_VOLTAGE_MAX;
@@ -790,7 +799,7 @@ void confgenerator_set_defaults_mcconf(mc_configuration *conf) {
 	conf->foc_hfi_start_samples = MCCONF_FOC_HFI_START_SAMPLES;
 	conf->foc_hfi_obs_ovr_sec = MCCONF_FOC_HFI_OBS_OVR_SEC;
 	conf->foc_hfi_samples = MCCONF_FOC_HFI_SAMPLES;
-	conf->foc_offsets_cal_on_boot = MCCONF_FOC_OFFSETS_CAL_ON_BOOT;
+	conf->foc_offsets_cal_mode = MCCONF_FOC_OFFSETS_CAL_MODE;
 	conf->foc_offsets_current[0] = MCCONF_FOC_OFFSETS_CURRENT_0;
 	conf->foc_offsets_current[1] = MCCONF_FOC_OFFSETS_CURRENT_1;
 	conf->foc_offsets_current[2] = MCCONF_FOC_OFFSETS_CURRENT_2;
